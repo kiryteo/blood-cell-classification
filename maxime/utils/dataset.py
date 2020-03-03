@@ -2,9 +2,10 @@ import pickle as pk
 import numpy as np
 
 
-def split_data(N, validation_set, test_set):
+def split_data(N, validation_set, test_set, seed=896):
+    np.random.seed(seed)
     indices = np.arange(N)
-    np.random.shuffle(indices)
+    # np.random.shuffle(indices)
 
     idxTest = indices[:int(N * test_set)]
     indices = indices[int(N * test_set):]
@@ -30,11 +31,23 @@ class GobuleRawFullDataSet:
             self.idxVal.append(_idxValidation)
             self.idxTest.append(_idxTest)
 
-    def getBatch(self, sizes=(250, 250, 250)):
-        A = np.random.choice(self.idxTrain[0], sizes[0])
-        B = np.random.choice(self.idxTrain[1], sizes[1])
-        C = np.random.choice(self.idxTrain[2], sizes[2])
+    def generate_batches(self, cls_id, sizes=250):
+        data = np.array_split(self.idxTrain[cls_id], len(self.idxTrain[cls_id]) // sizes)
 
+        for ids in data:
+            size_max = self.max_len(0, ids)
+
+            X = np.zeros((sizes, size_max, 31, 31))
+            Y = np.zeros(sizes)
+
+            for i, a in enumerate(ids):
+                X[i, :len(self.data[cls_id][a])] = np.array(self.data[0][a])
+                Y[i] = cls_id
+
+            yield np.reshape(X, (*X.shape, 1)) / 255, Y
+
+
+    def pad_batch(self, A, B, C, sizes):
         size_max = max(self.max_len(0, A), self.max_len(1, B), self.max_len(2, C))
 
         X = np.zeros((sum(sizes), size_max, 31, 31))
@@ -49,10 +62,17 @@ class GobuleRawFullDataSet:
             Y[sizes[0] + i] = 1
 
         for i, c in enumerate(C):
-            X[sizes[1] + i, :len(self.data[2][c])] = np.array(self.data[2][c])
-            Y[sizes[1] + i] = 2
+            X[sizes[0]+sizes[1] + i, :len(self.data[2][c])] = np.array(self.data[2][c])
+            Y[sizes[0]+sizes[1] + i] = 2
 
         return np.reshape(X, (*X.shape, 1)) / 255, Y
+
+    def getBatch(self, sizes=(250, 250, 250)):
+        A = np.random.choice(self.idxTrain[0], sizes[0])
+        B = np.random.choice(self.idxTrain[1], sizes[1])
+        C = np.random.choice(self.idxTrain[2], sizes[2])
+
+        return self.pad_batch(A, B, C, sizes)
 
     def validation(self, sizes = (128,128,128)):
         A = np.random.choice(self.idxVal[0], sizes[0])
@@ -75,10 +95,21 @@ class GobuleRawFullDataSet:
             Y[sizes[0] + i] = 1
 
         for i, c in enumerate(C):
-            X[sizes[1] + i, :len(self.data[2][c])] = np.array(self.data[2][c])
-            Y[sizes[1] + i] = 2
+            X[sizes[0]+sizes[1] + i, :len(self.data[2][c])] = np.array(self.data[2][c])
+            Y[sizes[0]+sizes[1] + i] = 2
 
-        return np.reshape(X, (*X.shape, 1)), Y
+        return np.reshape(X, (*X.shape, 1)) / 255, Y
+
+    def get_valcls(self, id):
+
+        size_max = self.max_len(0, self.idxVal[id])
+
+        X = np.zeros((len(self.idxVal[id]), size_max, 31, 31))
+        Y = np.zeros(len(self.idxVal[id]))
+
+        for i, a in enumerate(self.idxVal[id]):
+            X[i, :len(self.data[0][a])] = np.array(self.data[0][a])
+            Y[i] = 0
 
     def max_len(self, i, A):
         m = 0

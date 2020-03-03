@@ -102,9 +102,9 @@ def raw_sequences(path):
 
     for i in range(seqs.shape[0]):
         s = []
-        if len(X[labels[i][0]]) > 100:
-            continue
         for j in range(seqs[i].shape[0]):
+            if len(s) >= 64:
+                break
             if np.all(seqs[i, j] == np.zeros((31,31))):
                 break
             s.append(seqs[i, j])
