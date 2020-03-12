@@ -32,20 +32,24 @@ class GobuleRawFullDataSet:
             self.idxTest.append(_idxTest)
 
     def generate_batches(self, cls_id, sizes=250):
-        data = np.array_split(self.idxTrain[cls_id], len(self.idxTrain[cls_id]) // sizes)
+
+        s = len(self.idxTrain[cls_id]) // sizes
+        if s > 0:
+            data = np.array_split(self.idxTrain[cls_id], s)
+        else:
+            data = [self.idxTrain[cls_id]]
 
         for ids in data:
-            size_max = self.max_len(0, ids)
+            size_max = self.max_len(cls_id, ids)
 
-            X = np.zeros((sizes, size_max, 31, 31))
-            Y = np.zeros(sizes)
+            X = np.zeros((len(ids), size_max, 31, 31))
+            Y = np.zeros(len(ids))
 
             for i, a in enumerate(ids):
-                X[i, :len(self.data[cls_id][a])] = np.array(self.data[0][a])
+                X[i, :len(self.data[cls_id][a])] = np.array(self.data[cls_id][a])
                 Y[i] = cls_id
 
             yield np.reshape(X, (*X.shape, 1)) / 255, Y
-
 
     def pad_batch(self, A, B, C, sizes):
         size_max = max(self.max_len(0, A), self.max_len(1, B), self.max_len(2, C))
@@ -62,8 +66,8 @@ class GobuleRawFullDataSet:
             Y[sizes[0] + i] = 1
 
         for i, c in enumerate(C):
-            X[sizes[0]+sizes[1] + i, :len(self.data[2][c])] = np.array(self.data[2][c])
-            Y[sizes[0]+sizes[1] + i] = 2
+            X[sizes[0] + sizes[1] + i, :len(self.data[2][c])] = np.array(self.data[2][c])
+            Y[sizes[0] + sizes[1] + i] = 2
 
         return np.reshape(X, (*X.shape, 1)) / 255, Y
 
@@ -74,7 +78,7 @@ class GobuleRawFullDataSet:
 
         return self.pad_batch(A, B, C, sizes)
 
-    def validation(self, sizes = (128,128,128)):
+    def validation(self, sizes=(128, 128, 128)):
         A = np.random.choice(self.idxVal[0], sizes[0])
         B = np.random.choice(self.idxVal[1], sizes[1])
         C = np.random.choice(self.idxVal[2], sizes[2])
@@ -95,8 +99,8 @@ class GobuleRawFullDataSet:
             Y[sizes[0] + i] = 1
 
         for i, c in enumerate(C):
-            X[sizes[0]+sizes[1] + i, :len(self.data[2][c])] = np.array(self.data[2][c])
-            Y[sizes[0]+sizes[1] + i] = 2
+            X[sizes[0] + sizes[1] + i, :len(self.data[2][c])] = np.array(self.data[2][c])
+            Y[sizes[0] + sizes[1] + i] = 2
 
         return np.reshape(X, (*X.shape, 1)) / 255, Y
 

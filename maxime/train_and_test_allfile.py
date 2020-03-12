@@ -3,6 +3,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import TimeDistributed, LSTM, Dense, Activation, InputLayer, Conv2D, MaxPooling2D, Flatten, \
     GRU, Dropout, Bidirectional
 from tensorflow.keras.callbacks import TensorBoard
+from tensorflow.keras.models import save_model
 from utils.pltimage import write_seq
 from sklearn.metrics import accuracy_score
 import numpy as np
@@ -40,7 +41,7 @@ model.add(InputLayer(input_shape=(None, 31, 31, 1)))
 model.add(TimeDistributed(Conv2D(8, kernel_size=(3, 3),
                                  activation='relu', )))
 model.add(TimeDistributed(Conv2D(16, (3, 3), activation='relu')))
-model.add(TimeDistributed(Conv2D(32, (3, 3), activation='relu')))
+model.add(TimeDistributed(Conv2D(24, (3, 3), activation='relu')))
 
 model.add(TimeDistributed(Flatten()))
 
@@ -73,7 +74,9 @@ for e in range(epochs):
             X, Y = dataset.getBatch((64, 64, 64))
             logs = model.train_on_batch(X, Y)
 
-            if counter % 10 == 1 and counter > 1:
+            counter += 1
+
+            if counter % 30 == 1 and counter > 1:
                 X, Y = dataset.validation(sizes=(128, 0, 0))
                 cls1 = model.evaluate(X, Y)
 
@@ -90,7 +93,9 @@ for e in range(epochs):
                 print(n_logs, cls1, cls2, cls3)
                 tbcallback.on_batch_end(counter, n_logs)
 
-                if logs_val[1] > 0.95 and e > 9:
+
+
+                if logs_val[1] > 0.95 and e > 15:
                     pred_1, pred_2, pred_3 = [], [], []
                     ytrue_1, ytrue_2, ytrue_3 = [], [], []
 
@@ -98,25 +103,26 @@ for e in range(epochs):
                         dataset_test = GobuleRawFullDataSet(datatest_f, test_set=0, validation_set=0)
 
                         for X, Y in dataset_test.generate_batches(0, sizes=32):
-                            pred_1.append(model.predict(X, Y))
+                            pred_1.append(model.predict(X))
                             ytrue_1.append(Y)
 
+
                         for X, Y in dataset_test.generate_batches(1, sizes=32):
-                            pred_1.append(model.predict(X, Y))
+                            pred_2.append(model.predict(X))
                             ytrue_2.append(Y)
 
                         for X, Y in dataset_test.generate_batches(2, sizes=32):
-                            pred_1.append(model.predict(X, Y))
+                            pred_3.append(model.predict(X))
                             ytrue_3.append(Y)
 
-                    score_1 = accuracy_score(np.concat(ytrue_1), np.concat(pred_1))
-                    score_2 = accuracy_score(np.concat(ytrue_2), np.concat(pred_2))
-                    score_3 = accuracy_score(np.concat(ytrue_3), np.concat(pred_3))
+                    score_1 = accuracy_score(np.concatenate(ytrue_1), np.argmax(np.concatenate(pred_1), axis=1))
+                    score_2 = accuracy_score(np.concatenate(ytrue_2), np.argmax(np.concatenate(pred_2), axis=1))
+                    score_3 = accuracy_score(np.concatenate(ytrue_3), np.argmax(np.concatenate(pred_3), axis=1))
 
                     with open("score.txt", 'w') as f:
                         print((score_1, score_2, score_3), file=f)
                     break
-            counter += 1
 
-pk.dump(model, open(f"tmp/model-{time.time()}.chkpt", "wb"))
+
+save_model(model, f"tmp/model-{time.time()}.chkpt", "wb")
 tbcallback.on_train_end(None)
